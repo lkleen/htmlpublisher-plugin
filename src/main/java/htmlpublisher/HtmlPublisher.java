@@ -157,13 +157,10 @@ public class HtmlPublisher extends Recorder {
 
             FilePath archiveDir = null;
             try {
-                File dir = new File(reportTarget.getReportDir());
-                if (!dir.exists()) {
-                    throw new IOException("dir " + dir.getAbsolutePath() + " does not exist.");
-                } else if (!dir.isDirectory()) {
-                    throw new IOException(dir.getAbsolutePath() + " is no directory.");
+                archiveDir = new FilePath(new FilePath(new File("")), reportTarget.getReportDir());
+                if(!archiveDir.isDirectory()) {
+                    throw new IOException(reportTarget.getReportDir() + " is no directory.");
                 }
-                archiveDir = new FilePath(dir);
             } catch (IOException e) {
                 Util.displayIOException(e, listener);
                 e.printStackTrace(listener.fatalError("HTML Publisher failure"));
