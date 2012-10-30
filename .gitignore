@@ -1,5 +1,19 @@
 target
-work
-.classpath
+test-output
+classes
+
+# intellij
+*.iml
+*.ipr
+*.iws
+*.log
+.idea/
+
+# eclipse
 .project
-.settings
+.metadata
+.classpath
+.settings/
+.loadpath
+.springBeans
+bin

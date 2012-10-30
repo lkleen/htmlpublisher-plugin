@@ -29,12 +29,7 @@ import hudson.Launcher;
 import hudson.Util;
 import hudson.matrix.MatrixConfiguration;
 import hudson.matrix.MatrixProject;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.Action;
-import hudson.model.BuildListener;
-import hudson.model.Hudson;
-import hudson.model.Result;
+import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Publisher;
@@ -45,15 +40,7 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.servlet.ServletException;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,7 +48,7 @@ import java.util.List;
 
 /**
  * Saves HTML reports for the project and publishes them.
- * 
+ *
  * @author Kohsuke Kawaguchi
  * @author Mike Rooney
  */
@@ -72,7 +59,7 @@ public class HtmlPublisher extends Recorder {
     public HtmlPublisher(List<HtmlPublisherTarget> reportTargets) {
         this.reportTargets = reportTargets != null ? new ArrayList<HtmlPublisherTarget>(reportTargets) : new ArrayList<HtmlPublisherTarget>();
     }
-    
+
     public ArrayList<HtmlPublisherTarget> getReportTargets() {
         return this.reportTargets;
     }
@@ -138,8 +125,8 @@ public class HtmlPublisher extends Recorder {
         try {
             return build.getEnvironment(listener).expand(input);
         } catch (Exception e) {
-            listener.getLogger().println("Failed to resolve parameters in string \""+
-            input+"\" due to following error:\n"+e.getMessage());
+            listener.getLogger().println("Failed to resolve parameters in string \"" +
+                    input + "\" due to following error:\n" + e.getMessage());
         }
         return input;
     }
@@ -148,7 +135,7 @@ public class HtmlPublisher extends Recorder {
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
             throws InterruptedException {
         listener.getLogger().println("[htmlpublisher] Archiving HTML reports...");
-        
+
         // Grab the contents of the header and footer as arrays
         ArrayList<String> headerLines;
         ArrayList<String> footerLines;
@@ -162,29 +149,21 @@ public class HtmlPublisher extends Recorder {
             e1.printStackTrace();
             return false;
         }
-        
-        for (int i=0; i < this.reportTargets.size(); i++) {
+
+        for (HtmlPublisherTarget reportTarget : reportTargets) {
             // Create an array of lines we will eventually write out, initially the header.
             ArrayList<String> reportLines = new ArrayList<String>(headerLines);
-            HtmlPublisherTarget reportTarget = this.reportTargets.get(i); 
             boolean keepAll = reportTarget.getKeepAll();
 
             FilePath archiveDir = null;
             try {
-                FilePath[] matches = build.getWorkspace().list(resolveParametersInString(build, listener, reportTarget.getReportDir()));
-                if (matches.length == 0) {
-                    listener.error("directory does not exist");
-                } else if (matches.length > 1) {
-                    listener.error("more than one path matched the pattern:");
-                    for(FilePath p: matches) {
-                        listener.error("- " + p);
-                    }
-                } else {
-                    archiveDir = matches[0].getParent();
-                    if (!archiveDir.isDirectory()) {
-                        listener.error("Pattern did not match a directory");
-                    }
+                File dir = new File(reportTarget.getReportDir());
+                if (!dir.exists()) {
+                    throw new IOException("dir " + dir.getAbsolutePath() + " does not exist.");
+                } else if (!dir.isDirectory()) {
+                    throw new IOException(dir.getAbsolutePath() + " is no directory.");
                 }
+                archiveDir = new FilePath(dir);
             } catch (IOException e) {
                 Util.displayIOException(e, listener);
                 e.printStackTrace(listener.fatalError("HTML Publisher failure"));
@@ -198,20 +177,22 @@ public class HtmlPublisher extends Recorder {
             }
 
             FilePath targetDir = reportTarget.getArchiveTarget(build);
-            
-            String levelString = keepAll ? "BUILD" : "PROJECT"; 
+
+            String levelString = keepAll ? "BUILD" : "PROJECT";
             listener.getLogger().println("[htmlpublisher] Archiving at " + levelString + " level " + archiveDir + " to " + targetDir);
 
             // The index name might be a comma separated list of names, so let's figure out all the pages we should index.
             String[] csvReports = resolveParametersInString(build, listener, reportTarget.getReportFiles()).split(",");
             ArrayList<String> reports = new ArrayList<String>();
-            for (int j=0; j < csvReports.length; j++) {
+            for (int j = 0; j < csvReports.length; j++) {
                 String report = csvReports[j];
                 report = report.trim();
-                
+
                 // Ignore blank report names caused by trailing or double commas.
-                if (report.equals("")) {continue;}
-                
+                if (report.equals("")) {
+                    continue;
+                }
+
                 reports.add(report);
                 String tabNo = "tab" + (j + 1);
                 // Make the report name the filename without the extension.
@@ -236,7 +217,7 @@ public class HtmlPublisher extends Recorder {
                 String jobUrl = hudsonUrl + job.getUrl();
                 reportLines.add("<script type=\"text/javascript\">document.getElementById(\"hudson_link\").href=\"" + jobUrl + "\";</script>");
             }
-    
+
             reportLines.add("<script type=\"text/javascript\">document.getElementById(\"zip_link\").href=\"*zip*/" + reportTarget.getSanitizedName() + ".zip\";</script>");
 
             try {
@@ -244,7 +225,7 @@ public class HtmlPublisher extends Recorder {
                     // We are only keeping one copy at the project level, so remove the old one.
                     targetDir.deleteRecursive();
                 }
-    
+
                 if (archiveDir.copyRecursiveTo("**/*", targetDir) == 0) {
                     listener.error("Directory '" + archiveDir + "' exists but failed copying to '" + targetDir + "'.");
                     if (build.getResult().isBetterOrEqualTo(Result.UNSTABLE)) {
@@ -261,9 +242,9 @@ public class HtmlPublisher extends Recorder {
                 build.setResult(Result.FAILURE);
                 return true;
             }
-    
+
             reportTarget.handleAction(build);
-    
+
             // Now add the footer.
             reportLines.addAll(footerLines);
             // And write this as the index
@@ -285,12 +266,11 @@ public class HtmlPublisher extends Recorder {
             ArrayList<Action> actions = new ArrayList<Action>();
             for (HtmlPublisherTarget target : this.reportTargets) {
                 actions.add(target.getProjectAction(project));
-                if (project instanceof MatrixProject && ((MatrixProject) project).getActiveConfigurations() != null){
-                    for (MatrixConfiguration mc : ((MatrixProject) project).getActiveConfigurations()){
+                if (project instanceof MatrixProject && ((MatrixProject) project).getActiveConfigurations() != null) {
+                    for (MatrixConfiguration mc : ((MatrixProject) project).getActiveConfigurations()) {
                         try {
-                          mc.onLoad(mc.getParent(), mc.getName());
-                        }
-                        catch (IOException e){
+                            mc.onLoad(mc.getParent(), mc.getName());
+                        } catch (IOException e) {
                             //Could not reload the configuration.
                         }
                     }
@@ -312,7 +292,7 @@ public class HtmlPublisher extends Recorder {
          * Performs on-the-fly validation on the file mask wildcard.
          */
         public FormValidation doCheck(@AncestorInPath AbstractProject project,
-                @QueryParameter String value) throws IOException, ServletException {
+                                      @QueryParameter String value) throws IOException, ServletException {
             FilePath ws = project.getSomeWorkspace();
             return ws != null ? ws.validateRelativeDirectory(value) : FormValidation.ok();
         }
