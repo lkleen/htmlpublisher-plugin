@@ -157,7 +157,8 @@ public class HtmlPublisher extends Recorder {
 
             FilePath archiveDir = null;
             try {
-                archiveDir = new FilePath(new File(reportTarget.getReportDir()));
+                FilePath baseDir = new FilePath(new File("."));
+                archiveDir = new FilePath(baseDir, reportTarget.getReportDir());
                 if(!archiveDir.exists()) {
                     throw new IOException(reportTarget.getReportDir() + " does not exist.");
                 }
