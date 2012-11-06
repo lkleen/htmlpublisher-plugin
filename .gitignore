@@ -17,3 +17,7 @@ classes
 .loadpath
 .springBeans
 bin
+
+#maven
+pom.xml.releaseBackup
+release.properties
