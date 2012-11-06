@@ -36,12 +36,21 @@
       </plugins>
   </build>
 
-  <distributionManagement>
-      <repository>
-          <id>maven.jenkins-ci.org</id>
-          <url>http://maven.jenkins-ci.org:8081/content/repositories/releases/</url>
-      </repository>
-  </distributionManagement>
+    <distributionManagement>
+        <repository>
+            <id>bigpoint-nexus</id>
+            <name>bigpoint-nexus-releases</name>
+            <url>http://artifact-01.bigpoint.net:8080/nexus/content/repositories/releases</url>
+
+        </repository>
+
+        <snapshotRepository>
+            <id>bigpoint-nexus</id>
+            <name>bigpoint-nexus-snapshot</name>
+            <url>http://artifact-01.bigpoint.net:8080/nexus/content/repositories/snapshots</url>
+        </snapshotRepository>
+
+    </distributionManagement>
 
     <repositories>
         <repository>
